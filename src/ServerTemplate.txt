@@ -1,0 +1,7 @@
+import java.rmi.*;
+import java.rmi.server.UnicastRemoteObject;
+
+
+public class CLASSNAME extends RemoteServer implements IMP {
+	public static void main(String args[]){}
+}
