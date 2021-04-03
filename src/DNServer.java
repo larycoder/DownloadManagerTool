@@ -17,6 +17,7 @@ public class DNServer implements Runnable {
 		File f = new File("tmp/"+host.getHost()+"/"+String.valueOf(host.getPort())+"/"+filename);
 		System.out.println("[DEBUG] generate file in path: "+f.getPath());
 		if(!f.exists()) {
+			new File(f.getParent()).mkdirs();
 			f.createNewFile();
 		}
 		
