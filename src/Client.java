@@ -75,6 +75,7 @@ public class Client implements ManageFile, Runnable {
 					// send data
 					int len = fis.read(buffer, 0, buffer.length);
 					os.write(buffer, 0, len);
+					os.flush();
 				}
 
 				// wait for final confirm status
@@ -134,6 +135,7 @@ public class Client implements ManageFile, Runnable {
 					ps.println("200");
 					int len = is.read(buffer, 0, buffer.length);
 					fos.write(buffer, 0, len);
+					fos.flush();
 					size -= len;	
 				}
 
@@ -237,6 +239,7 @@ public class Client implements ManageFile, Runnable {
 					while(fis.available() > 0) {
 						int len = fis.read(buffer, 0, buffer.length);
 						fos.write(buffer, 0, len);
+						fos.flush();
 					}
 
 					fis.close();

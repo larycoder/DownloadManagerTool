@@ -28,6 +28,7 @@ public class DNServer implements Runnable {
 			ps.print("200\n");
 			int len = is.read(buffer, 0, buffer.length);
 			fos.write(buffer, 0, len);
+			fos.flush();
 			size -= len;
 		}
 		ps.print("201\n");
@@ -61,11 +62,16 @@ public class DNServer implements Runnable {
 				long size = Long.parseLong(lr.readLine());
 				ps.println("200");
 
+				System.out.println("[DEBUG] download request with offset: "+offset+" and size: "+size);
+
 				// send file process
 				InputStream fis = new FileInputStream(f);
 				byte[] buffer = new byte[5000];
 				fis.skip(offset);
 				while(size > 0 && fis.available() > 0) {
+
+					//System.out.println("[DEBUG] sending chunk file with remain chunk size: "+size);
+
 					if(!lr.readLine().startsWith("200")) {
 						fis.close();
 						throw new IOException("File transfer broken - could not get 200 status !!!");
@@ -75,8 +81,10 @@ public class DNServer implements Runnable {
 					int len = fis.read(buffer, 0, buffer.length);
 					if(len < size) {
 						os.write(buffer, 0, len);
+						os.flush();
 					} else {
 						os.write(buffer, 0, (int) size);
+						os.flush();
 					}
 					size -= len;
 				}
