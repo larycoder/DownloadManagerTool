@@ -10,12 +10,22 @@ public class Client implements ManageFile, Runnable {
 	private Socket s;
 	private String filename;
 	private String action;
+	private int offset;
+	private int size;
+	private int index;
 
 	public Client() {;} // default constructor
 	public Client(Socket s, String action, String filename) {
 		this.s = s;
 		this.action = action;
 		this.filename = filename;
+	}
+
+	public Client(Socket s, String action, String filename, int offset, int size, int index) {
+		this(s, action, filename);
+		this.offset = offset;
+		this.size = size;
+		this.index = index;
 	}
 	
 	private Collection<Host> listNameNode() {
@@ -40,7 +50,7 @@ public class Client implements ManageFile, Runnable {
 					System.out.println("[DEBUG] file info: "+f.toString());
 				}
 
-				// prapre connection
+				// prepare connection
 				OutputStream os = this.s.getOutputStream();
 				InputStream is = this.s.getInputStream();
 				PrintStream ps = new PrintStream(os);
@@ -52,7 +62,6 @@ public class Client implements ManageFile, Runnable {
 				ps.println(f.getName());
 				ps.println(f.length());
 
-				
 				// send data
 				byte[] buffer = new byte[5000];
 				InputStream fis = new FileInputStream(f);
@@ -84,7 +93,57 @@ public class Client implements ManageFile, Runnable {
 			}
 		} else if(this.action.equals("download")) {
 			// TODO: implement download action
-			;
+			try {
+				File f = new File(this.filename);
+
+				// validate file
+				if(f.exists() || f.isDirectory()) {
+					throw new IOException("Method expects non exists file !!!");
+				} else {
+					System.out.println("[DEBUG] file info: "+f.toString());
+				}
+
+				// prepare connection
+				OutputStream os = this.s.getOutputStream();
+				InputStream is = this.s.getInputStream();
+				PrintStream ps = new PrintStream(os);
+				InputStreamReader ir = new InputStreamReader(is);
+				LineNumberReader lr = new LineNumberReader(ir);
+
+				// header handshake
+				ps.println("download");
+				ps.println(f.getName());
+				if(!lr.readLine().startsWith("200")) {
+					throw new Exception("Handshake request file fail, could not get 200 status !!!");
+				}
+				lr.readLine(); // this handshake is for main thread process, ignore in here
+				ps.println("100");
+				ps.println(offset);
+				ps.println(size);
+				if(!lr.readLine().startsWith("200")) {
+					throw new Exception("Handshake process broken, could not get 200 status !!!");
+				}
+
+				// receive data
+				OutputStream fos = new FileOutputStream(new File(f.getPath()+"$"+this.index));
+				byte[] buffer = new byte[5000];
+				while(size > 0) {
+					ps.println("200");
+					int len = is.read(buffer, 0, buffer.length);
+					fos.write(buffer, 0, len);
+					size -= len;	
+				}
+
+				// close stream
+				fos.close();
+				ps.close();
+				os.close();
+				lr.close();
+				ir.close();
+				is.close();
+			} catch(Exception e) {
+				e.printStackTrace();
+			}
 		}
 	}
 
@@ -104,7 +163,92 @@ public class Client implements ManageFile, Runnable {
 		}
 	}
 
-	public void download(String filename) {;}
+	public void download(String filename) {
+		Collection<Host> hostList = this.listNameNode();
+		if(hostList != null) {
+			// truth ground size
+			int filesize = 0;
+			Collection<FileChunkBuilder> fcbList = new ArrayList<FileChunkBuilder>();
+			
+
+			// validate DataNode connection
+			for(Host h: hostList) {
+				FileChunkBuilder fcb = new FileChunkBuilder(h, "download", filename);
+				fcb.validateDataNode();
+				if(fcb.s == -1) {
+					; // we don't use hostList anymore hence ignore this
+				} else {
+					filesize = fcb.s;
+					fcbList.add(fcb);
+				}
+			}
+
+			System.out.println("[DEBUG] end validate DataNode");
+
+			if(fcbList.size() <= 0) {
+				 new Exception("Could not get DataNode have expected file !!!").printStackTrace();
+				 return;
+			}
+
+			// update filename, offset and size of each chunk
+			int chunkSize = (filesize + fcbList.size() - (filesize%fcbList.size())) / fcbList.size();
+			FileChunkBuilder[] fcbArr = fcbList.toArray(new FileChunkBuilder[0]);
+		       	fcbList.toArray(fcbArr);
+			for(int i=0; i < fcbList.size(); i++) {
+				FileChunkBuilder fcb = fcbArr[i];
+				fcb.index = i;
+				fcb.offset = chunkSize*i;
+				if(fcb.offset + chunkSize < filesize) {
+					fcb.s = chunkSize;
+				} else {
+					fcb.s = filesize - fcb.offset;
+				}
+			}
+
+			System.out.println("[DEBUG] begin download chunk file");
+			
+			// download chunk
+			try {
+				Collection<Thread> t = new ArrayList<Thread>();
+				for(int i=0; i < fcbArr.length; i++) {
+					FileChunkBuilder fcb = fcbArr[i];
+					Host h = fcb.h;
+					System.out.println("[DEBUG] get DataNode ("+h.getHost()+", "+h.getPort()+")");
+					Thread tt = new Thread(new Client(new Socket(h.getHost(), h.getPort()), "download", fcb.f, fcb.offset, fcb.s, fcb.index));
+					tt.start();
+					t.add(tt);
+				}
+				
+				// wait for all thread done
+				for(Thread tt: t) {
+					tt.join();
+				}
+
+				// TODO: merge file to single file
+				File f = new File(filename);
+				OutputStream fos = new FileOutputStream(f, true);
+				byte[] buffer = new byte[5000];
+				for(int i = 0; i < fcbArr.length; i++) {
+					File tempFile = new File(fcbArr[i].f+"$"+fcbArr[i].index);
+					InputStream fis = new FileInputStream(tempFile);
+					while(fis.available() > 0) {
+						int len = fis.read(buffer, 0, buffer.length);
+						fos.write(buffer, 0, len);
+					}
+
+					fis.close();
+					tempFile.delete();
+				}
+
+				// close
+				fos.close();
+			} catch(Exception e) {
+				e.printStackTrace();
+			}
+		} else {
+			System.out.println("[INFO] get DataNode: Empty DataNode");
+		}
+	}
 
 	public static void main(String args[]) {
 		// start client
@@ -121,7 +265,59 @@ public class Client implements ManageFile, Runnable {
 			c.store(args[3]);
 		} else if(args[2].equals("download")) {
 			// TODO: download data
-			;
+			System.out.println("[DEBUG] action request: "+args[2]);
+			c.download(args[3]);
 		}
-	}	
+	}
+
+	class FileChunkBuilder {
+		private String action;
+		private String filename;
+		public Host h;
+
+		public String f = null;
+		public int s = -1;
+		public int offset = -1;
+		public int index = -1;
+
+		public FileChunkBuilder(Host h, String action, String filename) {
+			this.action = action;
+			this.filename = filename;
+			this.h = h;
+		}
+
+		public void validateDataNode() {
+			try {
+				System.out.println("[DEBUG] start run DataNode validate process.");
+				File f = new File(filename);
+				Socket s = new Socket(h.getHost(), h.getPort());
+				OutputStream os = s.getOutputStream();
+				InputStream is = s.getInputStream();
+				PrintStream ps = new PrintStream(os);
+				InputStreamReader ir = new InputStreamReader(is);
+				LineNumberReader lr = new LineNumberReader(ir);
+	
+				// header handshake
+				ps.println(action);
+				ps.println(f.getName());
+				if(lr.readLine().startsWith("200")) {
+					int size = Integer.parseInt(lr.readLine());
+					ps.println("200");
+					if(lr.readLine().startsWith("200")) {
+						this.f = this.filename;
+						this.s = size;
+					}
+				}
+
+				// close
+				lr.close();
+				ir.close();
+				ps.close();
+				os.close();
+				is.close();
+			} catch(Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
 }
