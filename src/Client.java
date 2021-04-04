@@ -129,6 +129,8 @@ public class Client implements ManageFile, Runnable {
 				OutputStream fos = new FileOutputStream(new File(f.getPath()+"$"+this.index));
 				byte[] buffer = new byte[5000];
 				while(size > 0) {
+					//System.out.println("[DEBUG] remain filesize: "+size);
+
 					ps.println("200");
 					int len = is.read(buffer, 0, buffer.length);
 					fos.write(buffer, 0, len);
