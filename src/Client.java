@@ -133,7 +133,13 @@ public class Client implements ManageFile, Runnable {
 					//System.out.println("[DEBUG] remain filesize: "+size);
 
 					ps.println("200");
-					int len = is.read(buffer, 0, buffer.length);
+					int len;
+					if(buffer.length < size) {
+						len = is.read(buffer, 0, buffer.length);
+					} else {
+						len = is.read(buffer, 0, (int) size);
+					}
+
 					fos.write(buffer, 0, len);
 					fos.flush();
 					size -= len;	

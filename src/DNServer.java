@@ -47,6 +47,8 @@ public class DNServer implements Runnable {
 		if(f.isDirectory() || !f.exists()) {
 			ps.println("500");
 		} else {
+			System.out.println("[DEBUG] start stream download");
+
 			// header handshake
 			ps.println("200");
 			ps.println(f.length());
@@ -88,6 +90,8 @@ public class DNServer implements Runnable {
 					}
 					size -= len;
 				}
+
+				System.out.println("[DEBUG] end stream download");
 
 				// close file stream
 				fis.close();
