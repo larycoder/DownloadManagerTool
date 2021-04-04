@@ -18,8 +18,6 @@ This is simple tool to download data from multiple node
 - Download case: open multiple thread for downloading each chunk file to temp dir, then merge together into single file
 
 ## Protocol:
-
-1. DataNode:
 ```
 ##### upload protocol #####
 r: action \n
@@ -36,8 +34,12 @@ s: 201 \n
 ##### download protocol #####
 r: action \n
 r: filename \n
+s: 200 \n
+s: filesize \n
+r: [100 \n -- continues process | 200 \n -- ok now stop process]
+IF(200) s: 200 \n
 r: offset \n
-r: len \n
+r: size \n
 s: 200 \n
 
 -- repeat --
@@ -47,4 +49,8 @@ s: {data - chunk: 5000}
 
 ```
 
-2. ClientNode:
+2. Note:
+For Client side:
+- Upload: client open multi-thread to upload at same time to all nodes
+- Download: since each DataNode could have different data for single filename --> get first getted DataNode as truth ground to compare another DataNode
+
