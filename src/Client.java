@@ -30,6 +30,7 @@ public class Client implements ManageFile, Runnable {
 	
 	private Collection<Host> listNameNode() {
 		try {
+			System.out.println("[DEBUG] binding to rmi naming service at: "+"//"+host+"/"+name);
 			Consultation nns = (Consultation) Naming.lookup("//"+host+"/"+name);
 			return (Collection<Host>) nns.listDataNode();
 		} catch(Exception e) {
