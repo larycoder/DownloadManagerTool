@@ -36,6 +36,62 @@ public class DNServer implements Runnable {
 		fos.close();
 	}
 
+	private void downloadFile(String filename, InputStream is, OutputStream os) throws IOException {
+		PrintStream ps = new PrintStream(os);
+		InputStreamReader ir = new InputStreamReader(is);
+		LineNumberReader lr = new LineNumberReader(ir);
+		
+		File f = new File("tmp/"+host.getHost()+"/"+String.valueOf(host.getPort())+"/"+filename);
+		System.out.println("[DEBUG] request to download file: "+f.getPath());
+		if(f.isDirectory() || !f.exists()) {
+			ps.println("500");
+		} else {
+			// header handshake
+			ps.println("200");
+			ps.println(f.length());
+			
+			String processCode = lr.readLine();
+			if(processCode.startsWith("200")) {
+				System.out.println("[DEBUG] requester stop process in download handshake step");
+				ps.println("200");
+			} else if(!processCode.startsWith("100")) {
+				throw new IOException("Download handshake get unexpected code");
+			} else {
+				int offset = Integer.parseInt(lr.readLine());
+				int size = Integer.parseInt(lr.readLine());
+				ps.println("200");
+
+				// send file process
+				InputStream fis = new FileInputStream(f);
+				byte[] buffer = new byte[5000];
+				fis.skip(offset);
+				while(size > 0 && fis.available() > 0) {
+					if(!lr.readLine().startsWith("200")) {
+						fis.close();
+						throw new IOException("File transfer broken - could not get 200 status !!!");
+					}
+
+					// retrieve and send data
+					int len = fis.read(buffer, 0, buffer.length);
+					if(len < size) {
+						os.write(buffer, 0, len);
+					} else {
+						os.write(buffer, 0, size);
+					}
+					size -= len;
+				}
+
+				// close file stream
+				fis.close();
+			}
+		}
+
+		// close stream
+		ps.close();
+		lr.close();
+		ir.close();
+	}
+
 	public void run() {
 		try {
 			System.out.println("[DEBUG] socket info: "+this.s.toString());
@@ -54,7 +110,8 @@ public class DNServer implements Runnable {
 				uploadFile(filename, is, os, size);
 			} else if(action.equals("download")) {
 				// TODO: download file
-				;
+				String filename = lr.readLine();
+				downloadFile(filename, is, os);
 			}
 
 			lr.close();
@@ -107,6 +164,8 @@ public class DNServer implements Runnable {
 					}
 				} catch(Exception e) {
 					e.printStackTrace();
+					// TODO: register new slot
+					;
 				}
 			}
 		}
