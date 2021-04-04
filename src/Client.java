@@ -10,8 +10,8 @@ public class Client implements ManageFile, Runnable {
 	private Socket s;
 	private String filename;
 	private String action;
-	private int offset;
-	private int size;
+	private long offset;
+	private long size;
 	private int index;
 
 	public Client() {;} // default constructor
@@ -21,7 +21,7 @@ public class Client implements ManageFile, Runnable {
 		this.filename = filename;
 	}
 
-	public Client(Socket s, String action, String filename, int offset, int size, int index) {
+	public Client(Socket s, String action, String filename, long offset, long size, int index) {
 		this(s, action, filename);
 		this.offset = offset;
 		this.size = size;
@@ -167,7 +167,7 @@ public class Client implements ManageFile, Runnable {
 		Collection<Host> hostList = this.listNameNode();
 		if(hostList != null) {
 			// truth ground size
-			int filesize = 0;
+			long filesize = 0;
 			Collection<FileChunkBuilder> fcbList = new ArrayList<FileChunkBuilder>();
 			
 
@@ -191,7 +191,7 @@ public class Client implements ManageFile, Runnable {
 			}
 
 			// update filename, offset and size of each chunk
-			int chunkSize = (filesize + fcbList.size() - (filesize%fcbList.size())) / fcbList.size();
+			long chunkSize = (filesize + fcbList.size() - (filesize%fcbList.size())) / fcbList.size();
 			FileChunkBuilder[] fcbArr = fcbList.toArray(new FileChunkBuilder[0]);
 		       	fcbList.toArray(fcbArr);
 			for(int i=0; i < fcbList.size(); i++) {
@@ -265,8 +265,10 @@ public class Client implements ManageFile, Runnable {
 			c.store(args[3]);
 		} else if(args[2].equals("download")) {
 			// TODO: download data
+			long startTime = System.currentTimeMillis();
 			System.out.println("[DEBUG] action request: "+args[2]);
 			c.download(args[3]);
+			System.out.println("[INFO] download time in milliseconds: "+(System.currentTimeMillis() - startTime)+" s");
 		}
 	}
 
@@ -276,8 +278,8 @@ public class Client implements ManageFile, Runnable {
 		public Host h;
 
 		public String f = null;
-		public int s = -1;
-		public int offset = -1;
+		public long s = -1;
+		public long offset = -1;
 		public int index = -1;
 
 		public FileChunkBuilder(Host h, String action, String filename) {
@@ -301,7 +303,7 @@ public class Client implements ManageFile, Runnable {
 				ps.println(action);
 				ps.println(f.getName());
 				if(lr.readLine().startsWith("200")) {
-					int size = Integer.parseInt(lr.readLine());
+					long size = Long.parseLong(lr.readLine());
 					ps.println("200");
 					if(lr.readLine().startsWith("200")) {
 						this.f = this.filename;

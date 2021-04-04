@@ -12,7 +12,7 @@ public class DNServer implements Runnable {
 
 	public DNServer(Socket s) {this.s = s;}
 
-	private void uploadFile(String filename, InputStream is, OutputStream os, int size) throws IOException {
+	private void uploadFile(String filename, InputStream is, OutputStream os, long size) throws IOException {
 		PrintStream ps = new PrintStream(os);
 		File f = new File("tmp/"+host.getHost()+"/"+String.valueOf(host.getPort())+"/"+filename);
 		System.out.println("[DEBUG] generate file in path: "+f.getPath());
@@ -57,8 +57,8 @@ public class DNServer implements Runnable {
 			} else if(!processCode.startsWith("100")) {
 				throw new IOException("Download handshake get unexpected code");
 			} else {
-				int offset = Integer.parseInt(lr.readLine());
-				int size = Integer.parseInt(lr.readLine());
+				long offset = Long.parseLong(lr.readLine());
+				long size = Long.parseLong(lr.readLine());
 				ps.println("200");
 
 				// send file process
@@ -76,7 +76,7 @@ public class DNServer implements Runnable {
 					if(len < size) {
 						os.write(buffer, 0, len);
 					} else {
-						os.write(buffer, 0, size);
+						os.write(buffer, 0, (int) size);
 					}
 					size -= len;
 				}
@@ -106,7 +106,7 @@ public class DNServer implements Runnable {
 			if(action.equals("upload")) {
 				// TODO: upload file
 				String filename = lr.readLine();
-				int size = Integer.parseInt(lr.readLine());
+				long size = Long.parseLong(lr.readLine());
 				uploadFile(filename, is, os, size);
 			} else if(action.equals("download")) {
 				// TODO: download file
