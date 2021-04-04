@@ -1,1 +1,5 @@
 build
+
+# since script is not ready, ignore them
+pid*
+*.sh
