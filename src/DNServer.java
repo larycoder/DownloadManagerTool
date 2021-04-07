@@ -72,7 +72,7 @@ public class DNServer implements Runnable {
 				fis.skip(offset);
 				while(size > 0 && fis.available() > 0) {
 
-					//System.out.println("[DEBUG] sending chunk file with remain chunk size: "+size);
+					System.out.println("[DEBUG] sending chunk file with remain chunk size: "+size);
 
 					if(!lr.readLine().startsWith("200")) {
 						fis.close();
@@ -81,6 +81,7 @@ public class DNServer implements Runnable {
 
 					// retrieve and send data
 					int len = fis.read(buffer, 0, buffer.length);
+					//System.out.println("[DEBUG] filesize sent: " + len);
 					if(len < size) {
 						os.write(buffer, 0, len);
 						os.flush();
